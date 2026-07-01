@@ -102,7 +102,7 @@ def generalized_e2_preparation(
 
 
 
-def verify_generalized_e2_preparation(A: NDArray[np.float64], V: NDArray[np.float64]) -> sp.Expr:
+def verify_generalized_e2_preparation(V: NDArray[np.float64]) -> sp.Expr:
     a1, a1d = sp.symbols('a_1 a_1^\\dagger', commutative=False)
     a2, a2d = sp.symbols('a_2 a_2^\\dagger', commutative=False)
     a3, a3d = sp.symbols('a_3 a_3^\\dagger', commutative=False)
@@ -137,7 +137,7 @@ def verify_generalized_e2_preparation(A: NDArray[np.float64], V: NDArray[np.floa
                 r += xs[i]*xs[j] 
         return r
 
-    M = A.shape[0] // 2
+    M = V.shape[1] // 2
     z = sp.Matrix([all_ad[i] for i in range(M)] + [all_a[i] for i in range(M)])
 
     res = to_nf(esp2(V @ z).expand()).simplify()

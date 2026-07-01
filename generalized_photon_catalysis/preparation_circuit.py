@@ -75,11 +75,16 @@ def verify_single_form_preparation_circuit(P: mr.CircuitComponent, nG: NonGaussO
     return float(np.real(t.fidelity(l)))
 
 
-def get_product_form_preparation_circuit(V, r: float = 0.001, theta: float = 0.001) -> tuple[mr.CircuitComponent, list[int]]:
+def get_product_form_preparation_circuit(
+        V, r: float = 0.001, theta: float = 0.001,
+        calc_ancillas=True
+    ) -> tuple[mr.CircuitComponent, list[int]] | list[tuple[NonGaussOp | None, mr.CircuitComponent]]:
     """
     Returns (G, [anc]) -- a gaussian transformation and a set of ancillary modes, 
         that prepare a product of linear forms (rows of V) of creation and annihilation operators.
     The ancillary modes should be heralded on having 1 photon each, which is required by photon additions and subtractions in the circuit
+    If calc_ancillas is false, just return the series of Gaussian operations, s.t. when interleaved with corresponding NG-op, the product is prepared.
+        Note that the first element of the sequence doesn't have a non-gaussian component.
     """
     N = V.shape[0]
     M = V.shape[1] // 2
@@ -106,19 +111,23 @@ def get_product_form_preparation_circuit(V, r: float = 0.001, theta: float = 0.0
     res = mr.Identity(tuple(range(M)))
     for Gk in Gs:
         res = res >> Gk
-    
+
     Gs = Gs[::-1]
     ops = ops[::-1]
-    ancillas = list(range(M, M + N))
-    for i in range(N):
-        if ops[i] == NonGaussOp.Addition:
-            R = mr.S2gate(modes=(0, ancillas[i]), r=r)
-        else:
-            R = mr.BSgate(modes=(0, ancillas[i]), theta=theta)
 
-        res = res >> R >> Gs[i].inverse()
+    if calc_ancillas:
+        ancillas = list(range(M, M + N))
+        for i in range(N):
+            if ops[i] == NonGaussOp.Addition:
+                R = mr.S2gate(modes=(0, ancillas[i]), r=r)
+            else:
+                R = mr.BSgate(modes=(0, ancillas[i]), theta=theta)
 
-    return res, ancillas
+            res = res >> R >> Gs[i].inverse()
+
+        return res, ancillas
+    else:
+        return [(None, res)] + list(map(lambda t: (t[0], t[1].inverse()), zip(ops, Gs)))
 
 
 def mra_dag(mode: int):
