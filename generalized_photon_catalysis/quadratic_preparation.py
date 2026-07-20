@@ -36,7 +36,7 @@ def minimize_trace_complex_orthogonal(
     lr: float = 1e-3,
 ) -> torch.Tensor:
     """
-    Minimizes tr(O^T B O K) over complex orthogonal matrices (O^T O = I).
+    Minimizes tr(O B O^T K) over complex orthogonal matrices (O^T O = I).
     B, K: complex square tensors of shape (n, n).
     """
     model = ComplexOrthogonal(n=B.shape[0])
@@ -46,7 +46,7 @@ def minimize_trace_complex_orthogonal(
     for step in range(n_steps):
         optimizer.zero_grad()
         O = model()
-        loss = torch.abs(torch.trace(O.T @ B @ O @ K))
+        loss = torch.abs(torch.trace(O @ B @ O.T @ K))
         # Loss is complex in general; minimize the real part
         # (imaginary part of a trace of a product of complex matrices
         #  need not be zero, but the minimum of the real part is well-defined)
@@ -64,41 +64,41 @@ def minimize_trace_complex_orthogonal(
 
 
 def generalized_e2_preparation(
-        A: NDArray[np.float64],
+        Qp: NDArray[np.float64],
         n_steps: int = 5000,
         lr: float = 1e-3,
     ) -> NDArray[np.float64]:
     """
-    Generates preparation scheme for the target degree 2 polynomial in creation and annihilation operators
+    Generates preparation scheme for the target degree 2 polynomial in creation and annihilation operators, homogeneous in the normal order.
 
-    :param A: Quadratic-form matrix
+    :param Qp: Quadratic-form matrix
     """
-    assert A.shape[0] == A.shape[1]
-    assert A.shape[0] % 2 == 0
+    assert Qp.shape[0] == Qp.shape[1]
+    assert Qp.shape[0] % 2 == 0
 
-    M = A.shape[0] // 2
-    F = np.block([
+    M = Qp.shape[0] // 2
+    R = np.block([
         [np.zeros((M, M)), np.zeros((M, M))],
         [np.eye(M, M), np.zeros((M, M))]
     ])
-    E = np.asarray(get_e2_mat(2*M), dtype=np.float64)
-    U = np.triu(np.ones((2*M, 2*M))) - np.eye(2*M, 2*M)
+    Ep = np.asarray(get_e2_mat(2*M), dtype=np.float64)
+    E = np.triu(Ep)
 
-    sqrt_A = mat_sqrt_np(A)
-    sqrt_E = mat_sqrt_np(E)
-    inv_sqrt_E = np.linalg.inv(sqrt_E)
+    sqrt_Qp = mat_sqrt_np(Qp)
+    sqrt_Ep = mat_sqrt_np(Ep)
+    inv_sqrt_Ep = np.linalg.inv(sqrt_Ep)
 
-    B = sqrt_A @ F @ sqrt_A
-    K = inv_sqrt_E @ U.T @ inv_sqrt_E
+    G = sqrt_Qp @ R @ sqrt_Qp
+    K = inv_sqrt_Ep @ E.T @ inv_sqrt_Ep
 
     O = minimize_trace_complex_orthogonal(
-        torch.tensor(B, dtype=torch.complex64),
+        torch.tensor(G, dtype=torch.complex64),
         torch.tensor(K, dtype=torch.complex64),
         n_steps,
         lr
         ).detach().numpy()
     
-    return inv_sqrt_E @ O.T @ sqrt_A
+    return inv_sqrt_Ep @ O @ sqrt_Qp
 
 
 
